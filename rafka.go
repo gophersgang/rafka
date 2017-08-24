@@ -24,6 +24,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"sync"
 	"syscall"
 	"time"
@@ -176,12 +177,20 @@ func run(c *cli.Context) {
 		}
 
 	}()
-
+	memprof, err := os.Create("memprof")
+	if err != nil {
+		log.Fatal(err)
+	}
 	<-shutdown
+	///	runtime.GC() // get up-to-date statistics
+	if err := pprof.WriteHeapProfile(memprof); err != nil {
+		log.Fatal("could not write memory profile: ", err)
+	}
 	l.Println("Received shutdown signal. Shutting down...")
 	serverCancel()
 	serverWg.Wait()
 	managerCancel()
 	managerWg.Wait()
+	memprof.Close()
 	l.Println("All components shut down. Bye!")
 }
